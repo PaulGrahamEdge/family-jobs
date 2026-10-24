@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<!--
+=====================================================================
+  FAMILY JOBS AND POCKET MONEY
+  Single-file app for GitHub Pages, with Firebase Firestore for syncing.
+
+  Until you paste in your Firebase config (section 1 in the script
+  below), the app runs in demo mode and saves on this device only.
+  Demo data does not move across to Firebase once you connect.
+
+  HOW TO CONNECT FIREBASE (about 10 minutes)
+
+  1. Go to https://console.firebase.google.com and click
+     "Create a project". You don't need Google Analytics.
+     The free Spark plan is all you need.
+
+  2. In the left menu open Build > Firestore Database and click
+     "Create database". Choose the location australia-southeast1
+     (Sydney) and start in production mode.
+
+  3. Open the Rules tab in Firestore, replace everything with the
+     rules below and click Publish:
+
+       rules_version = '2';
+       service cloud.firestore {
+         match /databases/{database}/documents {
+           match /{document=**} {
+             allow read, write: if request.auth != null;
+           }
+         }
+       }
+
+  4. Open Build > Authentication, click "Get started", then on the
+     Sign-in method tab turn on "Anonymous" and save.
+
+  5. Still in Authentication, open Settings > Authorised domains and
+     add your GitHub Pages domain, e.g. yourname.github.io
+
+  6. Click the gear icon > Project settings. Under "Your apps" click
+     the web icon (</>), give it a name and register it. You don't
+     need Firebase Hosting. Copy the values from the firebaseConfig
+     it shows you into FIREBASE_CONFIG in section 1 below.
+
+  7. Upload this file to a GitHub repository as index.html, then in
+     the repository go to Settings > Pages and deploy from the main
+     branch (root folder).
+
+  8. Open the site and go to the Parents page. It should say
+     "Connected. Changes sync to every device."
+=====================================================================
+-->
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F4F6FB">
+<title>Jobs and pocket money</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Lexend:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#F4F6FB; --paper:#FFFFFF; --ink:#24223A; --muted:#66647D; --line:#DDE0EB;
+  --gold:#F7B500; --gold-hi:#FFDD66; --gold-deep:#B07A00; --gold-ink:#4A3300;
+  --k:#24223A; --k-soft:#ECEDF3; --k-ink:#FFFFFF; --k-deep:#24223A;
+  --display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --body:"Lexend","Avenir Next","Segoe UI",system-ui,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);background:var(--bg)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.45;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+
+.k-tom{--k:#7A4FD1;--k-soft:#EFE8FC;--k-ink:#FFFFFF;--k-deep:#5A33AA}
+.k-charlie{--k:#23874E;--k-soft:#E1F3E8;--k-ink:#FFFFFF;--k-deep:#17673A}
+.k-millie{--k:#5BBCEE;--k-soft:#E1F3FC;--k-ink:#06324D;--k-deep:#1A77AA}
+
+.wrap{max-width:760px;margin:0 auto;padding:18px 16px 56px}
+.muted{color:var(--muted)}
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.1}
+
+/* Coins */
+.coin{display:inline-grid;place-items:center;align-content:center;flex:none;border-radius:50%;
+  background:radial-gradient(circle at 34% 30%,var(--gold-hi),var(--gold) 58%,#E6A200);
+  box-shadow:inset 0 0 0 4px rgba(255,255,255,.38),inset 0 -5px 0 rgba(0,0,0,.07),0 3px 0 var(--gold-deep);
+  color:var(--gold-ink);font-family:var(--display);font-weight:800;text-align:center;line-height:1}
+.coin-amt{display:block}
+.coin-lbl{display:block;font-family:var(--body);font-weight:600;font-size:12px;margin-top:4px}
+.coin.big{width:120px;height:120px}
+.coin.big .coin-amt{font-size:42px}
+.coin.mid{width:64px;height:64px;font-size:22px}
+.coin.sm{width:58px;height:58px;font-size:20px}
+
+/* Banners */
+.banner{border-radius:12px;padding:10px 14px;font-size:14px;margin:0 0 14px;background:#FFF3D1;color:#5A4300}
+.banner.err{background:#FDE3E3;color:#7A1C1C}
+.banner.ok{background:#E2F3E8;color:#17542F}
+
+/* Home */
+.home-head{padding:8px 2px 20px}
+.home-head h1{font-size:clamp(32px,8vw,44px);font-weight:800;letter-spacing:-.02em}
+.home-head p{margin:6px 0 0;font-size:16px}
+.picks{display:grid;gap:14px}
+.pick{display:flex;align-items:center;gap:16px;min-height:112px;padding:18px 18px 18px 20px;border-radius:26px;
+  background:var(--k);color:var(--k-ink);text-decoration:none;position:relative;overflow:hidden}
+.pick-initial{font-family:var(--display);font-weight:800;font-size:76px;line-height:.75;width:60px;text-align:center;flex:none;color:rgba(255,255,255,.35)}
+.k-millie .pick-initial{color:rgba(6,50,77,.25)}
+.pick-body{flex:1;min-width:0}
+.pick-name{display:block;font-family:var(--display);font-weight:800;font-size:32px;line-height:1}
+.pick-sub{display:block;font-size:14px;margin-top:6px;opacity:.92}
+.pick:active{transform:scale(.985)}
+@media (min-width:640px){
+  .picks{grid-template-columns:repeat(3,1fr)}
+  .pick{flex-direction:column;align-items:flex-start;min-height:220px;padding:22px}
+  .pick-initial{font-size:110px;width:auto;text-align:left}
+  .pick .coin{position:absolute;top:18px;right:18px}
+  .pick-body{margin-top:auto}
+}
+.home-links{display:grid;grid-template-columns:1.4fr 1fr;gap:12px;margin-top:16px}
+.home-link{display:flex;align-items:center;justify-content:center;gap:10px;min-height:64px;border-radius:18px;text-decoration:none;font-weight:600;font-size:17px}
+.home-link.board{background:var(--paper);border:2px solid var(--gold);color:var(--ink)}
+.home-link.parent{background:transparent;border:2px solid var(--line);color:var(--muted)}
+.home-foot{margin-top:18px;font-size:13px;text-align:center}
+
+/* Top bar */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.back{display:inline-flex;align-items:center;gap:4px;min-height:48px;padding:0 14px 0 8px;border-radius:999px;text-decoration:none;font-weight:600;font-size:16px;background:rgba(255,255,255,.22)}
+.back svg{width:22px;height:22px}
+
+/* Kid page */
+.kid-head{background:var(--k);color:var(--k-ink);border-radius:0 0 30px 30px;padding:14px 16px 16px;margin:-18px -16px 0}
+@media (min-width:792px){.kid-head{border-radius:0 0 30px 30px}}
+.kh-main{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:4px 4px 14px}
+.kh-main h1{font-size:clamp(46px,13vw,68px);font-weight:800;letter-spacing:-.03em}
+.kh-week{font-size:15px;margin-top:6px;opacity:.9}
+.strip{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;list-style:none;margin:0;padding:0}
+.strip button{width:100%;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0 8px;border:0;border-radius:14px;background:transparent;color:inherit;cursor:pointer}
+.strip button[disabled]{opacity:.38;cursor:default}
+.strip .d-l{font-size:13px;font-weight:600}
+.strip .d-c{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;border:2.5px solid currentColor;opacity:.75}
+.strip .d-c svg{width:18px;height:18px}
+.strip .earned .d-c{background:var(--gold);border-color:var(--gold);color:var(--gold-ink);opacity:1}
+.strip .off .d-c{border-style:dotted;opacity:.55}
+.strip .sel{background:rgba(255,255,255,.24)}
+.k-millie .strip .sel{background:rgba(255,255,255,.5)}
+
+.daybar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:18px 0 6px}
+.navbtn{width:52px;height:52px;border-radius:50%;border:2px solid var(--line);background:var(--paper);display:grid;place-items:center;cursor:pointer;flex:none}
+.navbtn svg{width:24px;height:24px}
+.navbtn[disabled]{opacity:.3;cursor:default}
+.daylabel{text-align:center}
+.daylabel strong{display:block;font-family:var(--display);font-weight:800;font-size:26px;line-height:1.1}
+.daylabel span{font-size:15px;color:var(--muted)}
+.daynote{text-align:center;margin:4px 0 0;font-size:15px;color:var(--muted)}
+
+.progress{margin:16px 0 4px;padding:14px 16px;border-radius:18px;background:var(--k-soft)}
+.progress p{margin:0 0 10px;font-weight:500}
+.bar{height:14px;border-radius:999px;background:rgba(36,34,58,.1);overflow:hidden}
+.bar span{display:block;height:100%;border-radius:inherit;background:var(--k);transition:width .35s ease}
+.progress.complete{background:#FFF1C2}
+.progress.complete .bar span{background:var(--gold)}
+
+.cat{margin-top:26px}
+.cat-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 2px 10px}
+.cat-head h2{font-size:24px;font-weight:800}
+.cat-head .count{font-size:15px;color:var(--muted);font-weight:500}
+.tiles{display:grid;gap:10px}
+@media (min-width:640px){.tiles{grid-template-columns:1fr 1fr}}
+.tile{display:flex;align-items:center;gap:14px;width:100%;min-height:76px;padding:12px 14px;border:2px solid var(--line);border-radius:18px;background:var(--paper);text-align:left;cursor:pointer;transition:background-color .15s,border-color .15s,color .15s}
+.t-icon{flex:none;width:52px;height:52px;display:grid;place-items:center;font-size:30px;line-height:1;border-radius:14px;background:var(--k-soft);transition:transform .2s}
+.t-text{flex:1;min-width:0}
+.t-label{display:block;font-weight:600;font-size:17px;line-height:1.25}
+.t-sub{display:block;font-size:14px;color:var(--muted);margin-top:2px}
+.t-check{flex:none;width:36px;height:36px;border-radius:50%;border:2.5px solid #C5C9D8;display:grid;place-items:center}
+.t-check svg{width:20px;height:20px;opacity:0}
+.tile[disabled]{cursor:default;opacity:.6}
+.tile.done{background:var(--k);border-color:var(--k);color:var(--k-ink)}
+.tile.done .t-icon{background:#FFFFFF;transform:rotate(-7deg)}
+.tile.done .t-sub{color:inherit;opacity:.88}
+.tile.done .t-check{background:#FFFFFF;border-color:#FFFFFF;color:var(--k-deep)}
+.tile.done .t-check svg{opacity:1}
+.tile.pop{animation:pop .32s ease}
+@keyframes pop{40%{transform:scale(1.035)}100%{transform:scale(1)}}
+
+.extra{margin-top:10px;padding:14px;border:2px dashed var(--line);border-radius:18px;background:var(--paper)}
+.extra label{display:flex;align-items:center;gap:12px;font-weight:600;margin-bottom:10px}
+.extra label span.t-icon{width:44px;height:44px;font-size:24px}
+.extra-row{display:flex;gap:8px}
+.extra-row input{flex:1;min-width:0;min-height:52px;padding:0 14px;border:2px solid var(--line);border-radius:14px;font:inherit;background:var(--bg);color:var(--ink)}
+.extra-row input:focus{outline:none;border-color:var(--k)}
+.btn{min-height:52px;padding:0 18px;border-radius:14px;border:0;background:var(--k);color:var(--k-ink);font-weight:600;cursor:pointer}
+.btn.quiet{background:var(--paper);color:var(--ink);border:2px solid var(--line)}
+.extras{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px}
+.extras li{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 14px;border-radius:14px;background:var(--k);color:var(--k-ink);font-weight:500}
+.extras li span{flex:1;min-width:0;overflow-wrap:anywhere}
+.extras button{width:44px;height:44px;border-radius:12px;border:0;background:rgba(255,255,255,.25);color:inherit;font-size:22px;cursor:pointer;flex:none}
+
+/* Leaderboard */
+.page-head{margin:4px 2px 18px}
+.page-head h1{font-size:clamp(34px,9vw,48px);font-weight:800;letter-spacing:-.02em}
+.page-head p{margin:6px 0 0;color:var(--muted)}
+.board-list{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+.b-row{display:flex;gap:14px;padding:16px;border-radius:24px;background:var(--paper);border:2px solid var(--line)}
+.b-rank{flex:none;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--k);color:var(--k-ink);font-family:var(--display);font-weight:800;font-size:22px}
+.b-main{flex:1;min-width:0}
+.b-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.b-name{font-family:var(--display);font-weight:800;font-size:30px;line-height:1}
+.b-jobs{margin:4px 0 10px;color:var(--muted);font-size:15px}
+.b-bar{height:12px;border-radius:999px;background:var(--k-soft);overflow:hidden;margin-top:10px}
+.b-bar span{display:block;height:100%;background:var(--k);border-radius:inherit}
+.b-stats{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.b-stats li{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:var(--k-soft);font-size:14px;font-weight:500}
+.b-stats li b{font-size:16px}
+
+/* Parent */
+.panel{background:var(--paper);border:2px solid var(--line);border-radius:22px;padding:18px;margin-top:14px}
+.panel h2{font-size:22px;font-weight:800;margin-bottom:4px}
+.panel > p.help{margin:0 0 12px;color:var(--muted);font-size:15px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 0}
+.row + .row{border-top:1px solid var(--line)}
+.row-text strong{display:block;font-weight:600}
+.row-text span{display:block;font-size:14px;color:var(--muted)}
+.switch{flex:none;width:60px;height:36px;border-radius:999px;border:0;background:#C7CBD9;position:relative;cursor:pointer;transition:background-color .2s}
+.switch::after{content:"";position:absolute;top:4px;left:4px;width:28px;height:28px;border-radius:50%;background:#FFFFFF;transition:transform .2s}
+.switch[aria-checked="true"]{background:var(--ink)}
+.switch[aria-checked="true"]::after{transform:translateX(24px)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.chip{min-height:48px;padding:0 14px;border-radius:999px;border:2px solid var(--line);background:var(--paper);cursor:pointer;font-weight:500}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#FFFFFF}
+.chip small{font-weight:400;opacity:.8}
+.totals{display:grid;gap:10px}
+.total{display:flex;align-items:center;gap:14px;padding:12px;border-radius:16px;background:var(--k-soft)}
+.total-name{font-family:var(--display);font-weight:800;font-size:22px;line-height:1}
+.total-break{display:block;font-size:14px;color:var(--muted);margin-top:4px}
+.total .coin{margin-left:auto}
+.paidline{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;flex-wrap:wrap}
+.paid-badge{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:#17542F}
+.jobgrid-wrap{overflow-x:auto}
+.jobgrid{width:100%;border-collapse:collapse;min-width:320px}
+.jobgrid th{font-weight:600;font-size:14px;text-align:center;padding:6px 4px}
+.jobgrid th.job{text-align:left}
+.jobgrid td{padding:6px 4px;border-top:1px solid var(--line);text-align:center}
+.jobgrid td.job{text-align:left;font-size:15px}
+.jobgrid tr.cat-row td{border-top:0;padding-top:14px;font-family:var(--display);font-weight:800;font-size:17px;text-align:left}
+.kid-th{display:inline-grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--k);color:var(--k-ink);font-family:var(--display);font-weight:800}
+.jt{width:46px;height:46px;border-radius:12px;border:2px solid var(--k);background:var(--paper);color:var(--k-deep);display:inline-grid;place-items:center;cursor:pointer}
+.jt svg{width:22px;height:22px;opacity:0}
+.jt[aria-pressed="true"]{background:var(--k);color:var(--k-ink)}
+.jt[aria-pressed="true"] svg{opacity:1}
+.weeks{list-style:none;margin:0;padding:0}
+.weeks li{padding:12px 0;border-top:1px solid var(--line)}
+.weeks li:first-child{border-top:0}
+.wk-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.wk-kids{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.wk-kid{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 4px;border-radius:999px;background:var(--k-soft);font-weight:600;font-size:15px}
+.wk-kid i{font-style:normal;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--k);color:var(--k-ink);font-size:13px}
+.small-btn{min-height:44px;padding:0 14px;border-radius:12px;border:2px solid var(--line);background:var(--paper);font-weight:600;font-size:15px;cursor:pointer}
+.small-btn.on{background:#E2F3E8;border-color:#9FD3B3;color:#17542F}
+.setup ol{margin:8px 0 0;padding-left:22px}
+.setup li{margin:4px 0}
+code{font-size:.92em;background:var(--bg);padding:1px 6px;border-radius:6px}
+
+.loading{min-height:60vh;display:grid;place-items:center;color:var(--muted)}
+
+/* Toast and confetti */
+#toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:30;width:min(92vw,540px);
+  transform:translate(-50%,24px);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;
+  background:var(--ink);color:#FFFFFF;border-radius:20px;padding:14px 18px 14px 32px;cursor:pointer}
+#toast::before{content:"";position:absolute;left:14px;top:14px;bottom:14px;width:6px;border-radius:3px;background:var(--k)}
+#toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+#toast.big::before{background:var(--gold)}
+.toast-line{margin:0;font-size:18px;font-weight:600;line-height:1.35}
+.toast-who{margin:6px 0 0;font-size:14px;opacity:.75}
+#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:40}
+
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;animation:none !important}
+}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">Loading…</div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<canvas id="fx" aria-hidden="true"></canvas>
+<noscript><p style="padding:20px">This app needs JavaScript turned on.</p></noscript>
+
+<script type="module">
+/* =====================================================================
+   1. FIREBASE CONFIG
+   Paste the values from Firebase > Project settings > Your apps.
+   Leave apiKey as it is to run in demo mode (saves on this device only).
+   ===================================================================== */
+const FIREBASE_CONFIG = {
+  apiKey: "PASTE_YOUR_API_KEY_HERE",
+  authDomain: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: ""
+};
+const FIREBASE_VERSION = "10.12.2";
+
+/* =====================================================================
+   2. ENCOURAGEMENT MESSAGES
+   Check these and add more. "for" sets who sees each quote.
+   Give every quote its own id; the id is how the week's rotation works.
+   Once a child has seen every quote in a week, they get the simple
+   lines in FALLBACK_LINES until Monday.
+   ===================================================================== */
+const QUOTES = [
+  { id:"klopp-believers", for:["tom","charlie"], who:"Jürgen Klopp",
+    text:"We have to change from doubters to believers." },
+  { id:"klopp-leave", for:["tom"], who:"Jürgen Klopp",
+    text:"It's not so important what people think when you come in, it's much more important what people think when you leave." },
+  { id:"gerrard-again", for:["tom","charlie"], who:"Steven Gerrard",
+    text:"We go again." },
+  { id:"salah-dream", for:["tom","charlie"], who:"Mohamed Salah",
+    text:"Never stop dreaming, never stop believing." },
+  { id:"shankly-best", for:["tom","charlie"], who:"Bill Shankly",
+    text:"You must believe you are the best and then make sure that you are." },
+  { id:"saka-love", for:["tom","charlie"], who:"Bukayo Saka",
+    text:"Love always wins." },
+  { id:"jordan-team", for:["tom","charlie"], who:"Michael Jordan",
+    text:"Talent wins games, but teamwork and intelligence win championships." },
+  { id:"jordan-trying", for:["tom","charlie"], who:"Michael Jordan",
+    text:"I can't accept not trying." },
+  { id:"jordan-failed", for:["tom"], who:"Michael Jordan",
+    text:"I've failed over and over and over again in my life. And that is why I succeed." },
+  { id:"serena-recover", for:["tom"], who:"Serena Williams",
+    text:"I really think a champion is defined not by their wins but by how they can recover when they fall." },
+  { id:"gretzky-shots", for:["tom","charlie"], who:"Wayne Gretzky",
+    text:"You miss 100% of the shots you don't take." },
+  { id:"bjk-champions", for:["tom","charlie"], who:"Billie Jean King",
+    text:"Champions keep playing until they get it right." },
+  { id:"churchill-never", for:["tom","charlie"], who:"Winston Churchill",
+    text:"Never give in, never give in, never, never, never, never." },
+  { id:"mlk-moving", for:["tom"], who:"Martin Luther King Jr.",
+    text:"If you can't fly then run, if you can't run then walk, if you can't walk then crawl, but whatever you do you have to keep moving forward." },
+  { id:"jfk-moon", for:["tom"], who:"John F. Kennedy",
+    text:"We choose to go to the Moon in this decade and do the other things, not because they are easy, but because they are hard." },
+  { id:"fdr-fear", for:["tom"], who:"Franklin D. Roosevelt",
+    text:"The only thing we have to fear is fear itself." },
+  { id:"malala-pen", for:["tom","charlie"], who:"Malala Yousafzai",
+    text:"One child, one teacher, one book, one pen can change the world." },
+  { id:"eleanor-cannot", for:["tom","charlie"], who:"Eleanor Roosevelt",
+    text:"You must do the thing you think you cannot do." }
+];
+
+const MILLIE_LINES = [
+  "Great job, Millie!", "You did it!", "Well done, Millie!", "Yay!",
+  "You're a star!", "Brilliant!", "Woohoo, Millie!", "Super job!", "High five!"
+];
+const MILLIE_SONNY = "Sonny says thank you!";
+
+const FALLBACK_LINES = [
+  "Nice work, {name}.", "Another one done.", "Good stuff, {name}.",
+  "That's the way.", "Keep it going, {name}.", "Sorted."
+];
+
+/* =====================================================================
+   3. FAMILY AND JOBS
+   ===================================================================== */
+const KIDS = [
+  { id:"tom",     name:"Tom" },
+  { id:"charlie", name:"Charlie" },
+  { id:"millie",  name:"Millie" }
+];
+const CATS = [
+  { id:"before", name:"Before school" },
+  { id:"after",  name:"After school" },
+  { id:"any",    name:"Anytime" }
+];
+const JOBS = [
+  { id:"bedroom",   cat:"before", icon:"🛏️", label:"Tidy bedroom" },
+  { id:"bathroom",  cat:"before", icon:"🛁", label:"Tidy bathroom" },
+  { id:"teethHair", cat:"before", icon:"🪥", label:"Brush teeth and hair" },
+  { id:"packLunch", cat:"before", icon:"🥪", label:"Pack lunch boxes" },
+  { id:"lunchAway", cat:"after",  icon:"🍱", label:"Put lunch boxes away" },
+  { id:"teethPm",   cat:"after",  icon:"🦷", label:"Brush teeth" },
+  { id:"clothes",   cat:"after",  icon:"👕", label:"Get clothes out for tomorrow" },
+  { id:"guitar",    cat:"any",    icon:"🎸", label:"Guitar practice" },
+  { id:"floss",     cat:"any",    icon:"🧵", label:"Floss teeth" },
+  { id:"mow",       cat:"any",    icon:"🌿", label:"Mow the lawn" },
+  { id:"sonny",     cat:"any",    icon:"🐩", label:"Walk Sonny" },
+  { id:"gym",       cat:"any",    icon:"🏋️", label:"Gym" },
+  { id:"sports",    cat:"any",    icon:"⚽", label:"Sports practice" }
+];
+const PAY = { schoolDay:1, sonnyWalk:1 };
+// Jobs that pay once a week when a child reaches the target
+const WEEKLY = {
+  guitar: { target:3, pay:5 },
+  floss:  { target:2, pay:1 },
+  mow:    { target:1, pay:5, oncePerWeek:true }
+};
+// Jobs switched off for a child until a parent switches them on
+const DEFAULT_OFF = { charlie:["gym","mow"], millie:["gym","mow"] };
+
+/* =====================================================================
+   App code below. You shouldn't need to change anything past here.
+   ===================================================================== */
+const KID = Object.fromEntries(KIDS.map(k => [k.id, k]));
+const JOB = Object.fromEntries(JOBS.map(j => [j.id, j]));
+const DEL = { __delete: true };
+
+/* ---------- Dates (all in Perth time, UTC+8, no daylight saving) ---------- */
+const PERTH_MS = 8 * 3600 * 1000;
+const today = () => new Date(Date.now() + PERTH_MS).toISOString().slice(0, 10);
+const parse = s => new Date(s + "T00:00:00Z");
+const fmt = d => d.toISOString().slice(0, 10);
+const addDays = (s, n) => { const d = parse(s); d.setUTCDate(d.getUTCDate() + n); return fmt(d); };
+const dow = s => parse(s).getUTCDay();
+const weekStart = s => addDays(s, -((dow(s) + 6) % 7));
+const weekDates = ws => Array.from({ length: 7 }, (_, i) => addDays(ws, i));
+const fmtLong = s => parse(s).toLocaleDateString("en-AU", { weekday:"long", timeZone:"UTC" });
+const fmtDayMonth = s => parse(s).toLocaleDateString("en-AU", { day:"numeric", month:"long", timeZone:"UTC" });
+const fmtShortDay = s => parse(s).toLocaleDateString("en-AU", { weekday:"short", timeZone:"UTC" });
+function fmtRange(ws) {
+  const we = addDays(ws, 6), a = parse(ws), b = parse(we);
+  const sameMonth = a.getUTCMonth() === b.getUTCMonth();
+  return sameMonth
+    ? `${a.getUTCDate()} to ${fmtDayMonth(we)}`
+    : `${fmtDayMonth(ws)} to ${fmtDayMonth(we)}`;
+}
+
+/* ---------- Data ---------- */
+const data = { settings:{}, weeks:{} };
+const store = { mode:"demo", ready:false, error:null, write:() => {} };
+
+const isWeekend = s => { const d = dow(s); return d === 0 || d === 6; };
+function holidayStartFor(s) {
+  const h = data.settings.holidays || {};
+  for (const start of Object.keys(h)) {
+    const end = h[start] && h[start].end;
+    if (s >= start && (!end || s <= end)) return start;
+  }
+  return null;
+}
+const isHoliday = s => !!holidayStartFor(s);
+const isNoSchool = s => !!(data.settings.noSchool || {})[s];
+const isSchoolDay = s => !isWeekend(s) && !isHoliday(s) && !isNoSchool(s);
+function dayKind(s) {
+  if (isWeekend(s)) return "weekend";
+  if (isHoliday(s)) return "holiday";
+  if (isNoSchool(s)) return "noschool";
+  return "school";
+}
+function isOff(kid, job) {
+  const v = ((data.settings.off || {})[kid] || {})[job];
+  if (v === true || v === false) return v;
+  return (DEFAULT_OFF[kid] || []).includes(job);
+}
+const jobsFor = (kid, cat) => JOBS.filter(j => j.cat === cat && !isOff(kid, j.id));
+const schoolJobs = kid => [...jobsFor(kid, "before"), ...jobsFor(kid, "after")];
+const dayRec = (date, kid) => ((((data.weeks[weekStart(date)] || {}).days || {})[date] || {})[kid]) || {};
+
+function summary(ws, kid) {
+  const s = { schoolDays:0, guitar:0, floss:0, mow:0, sonny:0, gym:0, sports:0, extras:0, jobs:0, money:0, weeklyPaid:0 };
+  const t = today();
+  for (const d of weekDates(ws)) {
+    if (d > t) continue;
+    const rec = dayRec(d, kid);
+    if (isSchoolDay(d)) {
+      const sj = schoolJobs(kid);
+      const done = sj.filter(j => rec[j.id]).length;
+      s.jobs += done;
+      if (sj.length && done === sj.length) s.schoolDays++;
+    }
+    for (const j of jobsFor(kid, "any")) if (rec[j.id]) { s[j.id]++; s.jobs++; }
+    const ex = Object.keys(rec.extras || {}).length;
+    s.extras += ex; s.jobs += ex;
+  }
+  for (const [id, w] of Object.entries(WEEKLY)) if (!isOff(kid, id) && s[id] >= w.target) s.weeklyPaid += w.pay;
+  s.money = s.schoolDays * PAY.schoolDay + s.weeklyPaid + s.sonny * PAY.sonnyWalk;
+  return s;
+}
+// Days this week (up to today) when a job was ticked
+const doneDays = (ws, kid, jobId) => weekDates(ws).filter(d => d <= today() && dayRec(d, kid)[jobId]);
+function lockedOn(date, kid, jobId) {
+  const w = WEEKLY[jobId];
+  if (!w || !w.oncePerWeek || dayRec(date, kid)[jobId]) return null;
+  return doneDays(weekStart(date), kid, jobId)[0] || null;
+}
+function schoolProgress(date, kid) {
+  const sj = schoolJobs(kid), rec = dayRec(date, kid);
+  return { done: sj.filter(j => rec[j.id]).length, total: sj.length };
+}
+
+/* ---------- Storage: demo (this device) ---------- */
+function deepMerge(target, patch) {
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === DEL) delete target[k];
+    else if (v && typeof v === "object" && !Array.isArray(v)) {
+      if (!target[k] || typeof target[k] !== "object") target[k] = {};
+      deepMerge(target[k], v);
+    } else target[k] = v;
+  }
+  return target;
+}
+const LOCAL_KEY = "family-jobs-demo-v1";
+function loadLocal() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LOCAL_KEY) || "null");
+    if (saved) { data.settings = saved.settings || {}; data.weeks = saved.weeks || {}; }
+  } catch (e) { /* storage not available; keep in memory */ }
+}
+function startLocal() {
+  store.mode = "demo";
+  loadLocal();
+  store.write = (kind, id, patch) => {
+    if (kind === "settings") deepMerge(data.settings, patch);
+    else { data.weeks[id] = data.weeks[id] || {}; deepMerge(data.weeks[id], patch); }
+    try { localStorage.setItem(LOCAL_KEY, JSON.stringify(data)); } catch (e) {}
+    render();
+  };
+  window.addEventListener("storage", e => { if (e.key === LOCAL_KEY) { loadLocal(); render(); } });
+  store.ready = true;
+  render();
+}
+
+/* ---------- Storage: Firebase (syncs every device) ---------- */
+async function startFirebase() {
+  try {
+    const base = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/`;
+    const [appMod, fs, authMod] = await Promise.all([
+      import(base + "firebase-app.js"),
+      import(base + "firebase-firestore.js"),
+      import(base + "firebase-auth.js")
+    ]);
+    const app = appMod.initializeApp(FIREBASE_CONFIG);
+    await authMod.signInAnonymously(authMod.getAuth(app));
+    const db = fs.getFirestore(app);
+    const convert = obj => {
+      const out = {};
+      for (const [k, v] of Object.entries(obj)) {
+        if (v === DEL) out[k] = fs.deleteField();
+        else if (v && typeof v === "object" && !Array.isArray(v)) out[k] = convert(v);
+        else out[k] = v;
+      }
+      return out;
+    };
+    store.mode = "firebase";
+    store.write = (kind, id, patch) => {
+      const ref = kind === "settings" ? fs.doc(db, "family", "settings") : fs.doc(db, "weeks", id);
+      fs.setDoc(ref, convert(patch), { merge:true }).catch(err => { store.error = err.message; render(); });
+    };
+    let gotSettings = false, gotWeeks = false;
+    const fail = err => { store.error = err.message; store.ready = true; render(); };
+    fs.onSnapshot(fs.doc(db, "family", "settings"), snap => {
+      data.settings = snap.data() || {}; gotSettings = true;
+      if (gotWeeks) store.ready = true;
+      render();
+    }, fail);
+    fs.onSnapshot(fs.collection(db, "weeks"), qs => {
+      const w = {}; qs.forEach(d => { w[d.id] = d.data(); });
+      data.weeks = w; gotWeeks = true;
+      if (gotSettings) store.ready = true;
+      render();
+    }, fail);
+  } catch (err) {
+    store.error = "Couldn't connect to Firebase (" + (err.message || err) + "). Running in demo mode on this device.";
+    startLocal();
+  }
+}
+
+/* ---------- App state and routing ---------- */
+const state = { view:"home", kid:null, viewDate:today(), today:today(), extraDraft:"" };
+function readRoute() {
+  const [a, b] = location.hash.replace(/^#\/?/, "").split("/");
+  if (a === "kid" && KID[b]) return { view:"kid", kid:b };
+  if (a === "board") return { view:"board", kid:null };
+  if (a === "parent") return { view:"parent", kid:null };
+  return { view:"home", kid:null };
+}
+function applyRoute() {
+  const r = readRoute();
+  if (r.view !== "kid" || r.kid !== state.kid) { state.viewDate = today(); state.extraDraft = ""; }
+  state.view = r.view; state.kid = r.kid;
+  toastEl.classList.remove("show");
+  render();
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", applyRoute);
+
+setInterval(() => {
+  const t = today();
+  if (t !== state.today) {
+    if (state.viewDate === state.today || state.viewDate < weekStart(t)) state.viewDate = t;
+    state.today = t;
+    render();
+  }
+}, 30000);
+
+/* ---------- Helpers ---------- */
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const money = n => "$" + n;
+const ICON = {
+  check:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`,
+  left:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>`,
+  right:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>`
+};
+const coin = (amount, cls, label) =>
+  `<span class="coin ${cls}" aria-label="${money(amount)}${label ? " " + label : ""}"><span class="coin-amt">${money(amount)}</span>${label ? `<span class="coin-lbl">${label}</span>` : ""}</span>`;
+
+function statusBanner() {
+  if (store.error) return `<p class="banner err">${esc(store.error)}</p>`;
+  return "";
+}
+
+/* ---------- Views ---------- */
+function viewHome() {
+  const t = state.today, ws = weekStart(t), kind = dayKind(t);
+  const kindText = { school:"School day", weekend:"Weekend", holiday:"School holidays", noschool:"No school today" }[kind];
+  const picks = KIDS.map(k => {
+    const s = summary(ws, k.id);
+    let sub;
+    if (kind === "school") {
+      const p = schoolProgress(t, k.id);
+      sub = p.total && p.done === p.total ? "School jobs all done today" : `${p.done} of ${p.total} school jobs today`;
+    } else sub = "Anytime jobs today";
+    return `<a class="pick k-${k.id}" href="#/kid/${k.id}">
+      <span class="pick-initial" aria-hidden="true">${k.name[0]}</span>
+      <span class="pick-body"><span class="pick-name">${k.name}</span><span class="pick-sub">${sub}</span></span>
+      ${coin(s.money, "sm")}
+    </a>`;
+  }).join("");
+  return `<main class="wrap">
+    ${statusBanner()}
+    <header class="home-head">
+      <h1>Who's doing jobs?</h1>
+      <p class="muted">${fmtLong(t)} ${fmtDayMonth(t)}. ${kindText}.</p>
+    </header>
+    <nav class="picks" aria-label="Choose who you are">${picks}</nav>
+    <div class="home-links">
+      <a class="home-link board" href="#/board"><span aria-hidden="true">🏆</span> Leaderboard</a>
+      <a class="home-link parent" href="#/parent">Parents</a>
+    </div>
+    ${store.mode === "demo" ? `<p class="home-foot muted">Demo mode: saving on this device only.</p>` : ""}
+  </main>`;
+}
+
+function tileHTML(job, done, sub, locked) {
+  return `<button class="tile${done ? " done" : ""}" data-act="tick" data-job="${job.id}" role="checkbox" aria-checked="${done}"${locked ? " disabled" : ""}>
+    <span class="t-icon" aria-hidden="true">${job.icon}</span>
+    <span class="t-text"><span class="t-label">${job.label}</span>${sub ? `<span class="t-sub">${sub}</span>` : ""}</span>
+    <span class="t-check" aria-hidden="true">${ICON.check}</span>
+  </button>`;
+}
+
+function viewKid() {
+  const k = KID[state.kid], t = state.today;
+  if (state.viewDate > t) state.viewDate = t;
+  if (state.viewDate < weekStart(t)) state.viewDate = weekStart(t);
+  const date = state.viewDate, ws = weekStart(date), s = summary(ws, k.id), rec = dayRec(date, k.id);
+  const kind = dayKind(date), isToday = date === t;
+
+  const strip = weekDates(ws).map(d => {
+    const future = d > t;
+    let cls = "", inner = "", status;
+    if (!isSchoolDay(d)) { cls = "off"; status = "no school"; }
+    else {
+      const p = schoolProgress(d, k.id);
+      if (p.total && p.done === p.total) { cls = "earned"; inner = ICON.check; status = "school jobs done"; }
+      else status = future ? "school day" : `${p.done} of ${p.total} school jobs`;
+    }
+    if (d === date) cls += " sel";
+    return `<li><button class="${cls}" data-act="day" data-date="${d}" ${future ? "disabled" : ""} aria-label="${fmtLong(d)}, ${status}" ${d === date ? 'aria-current="date"' : ""}>
+      <span class="d-l" aria-hidden="true">${fmtShortDay(d)[0]}</span><span class="d-c" aria-hidden="true">${inner}</span></button></li>`;
+  }).join("");
+
+  const noteText = {
+    weekend:"Weekend. Anytime jobs only.",
+    holiday:"School holidays. Anytime jobs only.",
+    noschool:"No school. Anytime jobs only."
+  }[kind];
+
+  let progress = "";
+  let sections = "";
+  if (kind === "school") {
+    const p = schoolProgress(date, k.id);
+    const complete = p.total && p.done === p.total;
+    const pct = p.total ? Math.round(p.done / p.total * 100) : 0;
+    progress = `<div class="progress${complete ? " complete" : ""}">
+      <p>${complete ? `All school jobs done. ${money(PAY.schoolDay)} earned!` : `${p.done} of ${p.total} school jobs done. Finish them all for ${money(PAY.schoolDay)}.`}</p>
+      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${p.total}" aria-valuenow="${p.done}"><span style="width:${pct}%"></span></div>
+    </div>`;
+    for (const cat of CATS.slice(0, 2)) {
+      const js = jobsFor(k.id, cat.id);
+      if (!js.length) continue;
+      const done = js.filter(j => rec[j.id]).length;
+      sections += `<section class="cat"><div class="cat-head"><h2>${cat.name}</h2><span class="count">${done} of ${js.length}</span></div>
+        <div class="tiles">${js.map(j => tileHTML(j, !!rec[j.id])).join("")}</div></section>`;
+    }
+  }
+
+  const anyJobs = jobsFor(k.id, "any").map(j => {
+    let sub = "";
+    const w = WEEKLY[j.id], locked = lockedOn(date, k.id, j.id);
+    if (locked) sub = `Done on ${fmtLong(locked)}. ${money(w.pay)} earned this week`;
+    else if (w && w.oncePerWeek) sub = s[j.id] ? `${money(w.pay)} earned this week` : `Once a week for ${money(w.pay)}`;
+    else if (w) sub = s[j.id] >= w.target ? `${money(w.pay)} earned this week` : `${s[j.id]} of ${w.target} this week for ${money(w.pay)}`;
+    if (j.id === "sonny") sub = rec.sonny ? `${money(PAY.sonnyWalk)} earned` : `${money(PAY.sonnyWalk)} a day`;
+    return tileHTML(j, !!rec[j.id], sub, !!locked);
+  }).join("");
+  const extras = Object.entries(rec.extras || {});
+  sections += `<section class="cat"><div class="cat-head"><h2>Anytime</h2></div>
+    <div class="tiles">${anyJobs}</div>
+    <div class="extra">
+      <label for="extra-in"><span class="t-icon" aria-hidden="true">✏️</span>Something else you did</label>
+      <div class="extra-row">
+        <input id="extra-in" type="text" maxlength="60" autocomplete="off" placeholder="Helped cook dinner" value="${esc(state.extraDraft)}">
+        <button class="btn" data-act="add-extra">Add</button>
+      </div>
+      ${extras.length ? `<ul class="extras">${extras.map(([id, txt]) => `<li><span>${esc(txt)}</span><button data-act="del-extra" data-id="${id}" aria-label="Remove ${esc(txt)}">×</button></li>`).join("")}</ul>` : ""}
+    </div></section>`;
+
+  return `<div class="k-${k.id}"><main class="wrap">
+    <header class="kid-head">
+      <div class="topbar"><a class="back" href="#/">${ICON.left}Home</a></div>
+      <div class="kh-main">
+        <div><h1>${k.name}</h1><p class="kh-week">${fmtRange(ws)}</p></div>
+        ${coin(s.money, "big", "this week")}
+      </div>
+      <ol class="strip" aria-label="Days this week">${strip}</ol>
+    </header>
+    ${statusBanner()}
+    <div class="daybar">
+      <button class="navbtn" data-act="prev" aria-label="Previous day" ${date <= ws ? "disabled" : ""}>${ICON.left}</button>
+      <div class="daylabel"><strong>${isToday ? "Today" : fmtLong(date)}</strong><span>${isToday ? fmtLong(date) + " " : ""}${fmtDayMonth(date)}</span></div>
+      <button class="navbtn" data-act="next" aria-label="Next day" ${date >= t ? "disabled" : ""}>${ICON.right}</button>
+    </div>
+    ${noteText ? `<p class="daynote">${noteText}</p>` : ""}
+    ${progress}
+    ${sections}
+  </main></div>`;
+}
+
+function viewBoard() {
+  const ws = weekStart(state.today);
+  const rows = KIDS.map(k => ({ k, s: summary(ws, k.id) }))
+    .sort((a, b) => b.s.money - a.s.money || b.s.jobs - a.s.jobs);
+  const maxJobs = Math.max(1, ...rows.map(r => r.s.jobs));
+  const list = rows.map((r, i) => {
+    const { k, s } = r;
+    const stats = [];
+    stats.push(`<li><span aria-hidden="true">🎒</span><b>${s.schoolDays}</b> full school day${s.schoolDays === 1 ? "" : "s"}</li>`);
+    if (!isOff(k.id, "guitar")) stats.push(`<li><span aria-hidden="true">🎸</span><b>${s.guitar}</b> guitar</li>`);
+    if (!isOff(k.id, "floss")) stats.push(`<li><span aria-hidden="true">🧵</span><b>${s.floss}</b> floss</li>`);
+    if (!isOff(k.id, "mow")) stats.push(`<li><span aria-hidden="true">🌿</span><b>${s.mow}</b> lawn</li>`);
+    if (!isOff(k.id, "sonny")) stats.push(`<li><span aria-hidden="true">🐩</span><b>${s.sonny}</b> Sonny walk${s.sonny === 1 ? "" : "s"}</li>`);
+    if (!isOff(k.id, "gym")) stats.push(`<li><span aria-hidden="true">🏋️</span><b>${s.gym}</b> gym</li>`);
+    if (!isOff(k.id, "sports")) stats.push(`<li><span aria-hidden="true">⚽</span><b>${s.sports}</b> sport</li>`);
+    stats.push(`<li><span aria-hidden="true">✏️</span><b>${s.extras}</b> other</li>`);
+    return `<li class="b-row k-${k.id}">
+      <span class="b-rank" aria-label="Place ${i + 1}">${i + 1}</span>
+      <div class="b-main">
+        <div class="b-top"><span class="b-name">${k.name}</span>${coin(s.money, "mid")}</div>
+        <p class="b-jobs">${s.jobs} job${s.jobs === 1 ? "" : "s"} done this week</p>
+        <ul class="b-stats">${stats.join("")}</ul>
+        <div class="b-bar" aria-hidden="true"><span style="width:${Math.round(s.jobs / maxJobs * 100)}%"></span></div>
+      </div>
+    </li>`;
+  }).join("");
+  return `<main class="wrap">
+    <div class="topbar"><a class="back" href="#/" style="background:var(--paper);border:2px solid var(--line)">${ICON.left}Home</a></div>
+    ${statusBanner()}
+    <header class="page-head"><h1>Leaderboard</h1><p>This week, ${fmtRange(ws)}</p></header>
+    <ol class="board-list">${list}</ol>
+  </main>`;
+}
+
+function breakdown(s, kid) {
+  const bits = [`${s.schoolDays} full school day${s.schoolDays === 1 ? "" : "s"}`];
+  bits.push(`guitar ${s.guitar} of ${WEEKLY.guitar.target}`);
+  bits.push(`floss ${s.floss} of ${WEEKLY.floss.target}`);
+  if (!isOff(kid, "mow")) bits.push(s.mow ? "lawn mowed" : "lawn not mowed");
+  bits.push(`${s.sonny} Sonny walk${s.sonny === 1 ? "" : "s"}`);
+  return bits.join(", ");
+}
+
+function viewParent() {
+  const t = state.today, ws = weekStart(t), week = data.weeks[ws] || {};
+  const holidayOn = isHoliday(t);
+  const conn = store.error ? "" : store.mode === "firebase"
+    ? `<p class="banner ok">Connected. Changes sync to every device.</p>`
+    : `<p class="banner">Demo mode. Saving on this device only until Firebase is connected.</p>`;
+
+  const chips = weekDates(ws).slice(0, 5).map(d =>
+    `<button class="chip" data-act="noschool" data-date="${d}" aria-pressed="${isNoSchool(d)}">${fmtShortDay(d)} <small>${parse(d).getUTCDate()}</small></button>`
+  ).join("");
+
+  const totals = KIDS.map(k => {
+    const s = summary(ws, k.id);
+    return `<div class="total k-${k.id}"><div><span class="total-name">${k.name}</span><span class="total-break">${breakdown(s, k.id)}</span></div>${coin(s.money, "sm")}</div>`;
+  }).join("");
+
+  const head = KIDS.map(k => `<th class="k-${k.id}"><span class="kid-th" title="${k.name}" aria-label="${k.name}">${k.name[0]}</span></th>`).join("");
+  let grid = "";
+  for (const cat of CATS) {
+    grid += `<tr class="cat-row"><td colspan="${KIDS.length + 1}">${cat.name}</td></tr>`;
+    for (const j of JOBS.filter(j => j.cat === cat.id)) {
+      grid += `<tr><td class="job"><span aria-hidden="true">${j.icon}</span> ${j.label}</td>${KIDS.map(k => {
+        const on = !isOff(k.id, j.id);
+        return `<td class="k-${k.id}"><button class="jt" data-act="jobtoggle" data-kid="${k.id}" data-job="${j.id}" aria-pressed="${on}" aria-label="${j.label} for ${k.name}">${ICON.check}</button></td>`;
+      }).join("")}</tr>`;
+    }
+  }
+
+  const past = Object.keys(data.weeks).filter(w => w < ws).sort().reverse();
+  const pastList = past.length ? `<ul class="weeks">${past.map(w => {
+    const paid = !!(data.weeks[w] || {}).paid;
+    return `<li><div class="wk-top"><strong>${fmtRange(w)}</strong>
+        <button class="small-btn${paid ? " on" : ""}" data-act="paid" data-week="${w}">${paid ? "Paid ✓" : "Mark as paid"}</button></div>
+      <div class="wk-kids">${KIDS.map(k => `<span class="wk-kid k-${k.id}"><i>${k.name[0]}</i>${money(summary(w, k.id).money)}</span>`).join("")}</div></li>`;
+  }).join("")}</ul>` : `<p class="muted" style="margin:0">Past weeks will show here from next Monday.</p>`;
+
+  const setup = store.mode === "demo" ? `<section class="panel setup"><h2>Connect Firebase</h2>
+    <p class="help">To sync across every device, follow the setup steps at the top of the HTML file. In short:</p>
+    <ol><li>Create a free Firebase project and a Firestore database.</li>
+    <li>Paste the security rules from the file and turn on Anonymous sign-in.</li>
+    <li>Copy your web app config into <code>FIREBASE_CONFIG</code> and upload the file again.</li></ol></section>` : "";
+
+  return `<main class="wrap">
+    <div class="topbar"><a class="back" href="#/" style="background:var(--paper);border:2px solid var(--line)">${ICON.left}Home</a></div>
+    <header class="page-head"><h1>Parents</h1><p>${fmtLong(t)} ${fmtDayMonth(t)}</p></header>
+    ${statusBanner()}${conn}
+
+    <section class="panel">
+      <h2>School days</h2>
+      <div class="row">
+        <div class="row-text"><strong>School holiday mode</strong><span>Shows anytime jobs only and turns off the daily ${money(PAY.schoolDay)}.</span></div>
+        <button class="switch" role="switch" aria-checked="${holidayOn}" aria-label="School holiday mode" data-act="holiday"></button>
+      </div>
+      <div class="row" style="display:block">
+        <div class="row-text"><strong>No school this week</strong><span>Tap any pupil-free day or public holiday.</span></div>
+        <div class="chips">${chips}</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>This week</h2>
+      <p class="help">${fmtRange(ws)}. A new week starts automatically each Monday.</p>
+      <div class="totals">${totals}</div>
+      <div class="paidline">
+        ${week.paid ? `<span class="paid-badge">${ICON.check.replace("<svg", '<svg width="20" height="20"')} Marked as paid</span>` : `<span class="muted">Not paid yet</span>`}
+        <button class="small-btn${week.paid ? " on" : ""}" data-act="paid" data-week="${ws}">${week.paid ? "Undo paid" : "Mark week as paid"}</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Jobs for each child</h2>
+      <p class="help">Ticked jobs show on that child's page. A job switched off doesn't count towards their daily ${money(PAY.schoolDay)}.</p>
+      <div class="jobgrid-wrap"><table class="jobgrid"><thead><tr><th class="job">Job</th>${head}</tr></thead><tbody>${grid}</tbody></table></div>
+    </section>
+
+    <section class="panel">
+      <h2>Past weeks</h2>
+      ${pastList}
+    </section>
+    ${setup}
+  </main>`;
+}
+
+/* ---------- Render ---------- */
+const appEl = document.getElementById("app");
+function render() {
+  if (!store.ready) { appEl.innerHTML = `<div class="loading">Loading…</div>`; return; }
+  const active = document.activeElement;
+  const hadFocus = active && active.id === "extra-in";
+  const sel = hadFocus ? [active.selectionStart, active.selectionEnd] : null;
+  appEl.innerHTML =
+    state.view === "kid" ? viewKid() :
+    state.view === "board" ? viewBoard() :
+    state.view === "parent" ? viewParent() : viewHome();
+  if (hadFocus) {
+    const inp = document.getElementById("extra-in");
+    if (inp) { inp.focus(); try { inp.setSelectionRange(sel[0], sel[1]); } catch (e) {} }
+  }
+}
+
+/* ---------- Encouragement ---------- */
+const sessionUsed = {};
+let lastMillie = -1;
+function pickMillie() {
+  let i;
+  do { i = Math.floor(Math.random() * MILLIE_LINES.length); } while (i === lastMillie && MILLIE_LINES.length > 1);
+  lastMillie = i;
+  return MILLIE_LINES[i];
+}
+function pickQuote(kidId) {
+  const ws = weekStart(today()), key = ws + kidId;
+  const seen = { ...(((data.weeks[ws] || {}).used || {})[kidId] || {}), ...(sessionUsed[key] || {}) };
+  const pool = QUOTES.filter(q => q.for.includes(kidId) && !seen[q.id]);
+  if (!pool.length) {
+    const line = FALLBACK_LINES[Math.floor(Math.random() * FALLBACK_LINES.length)];
+    return { line: line.replace("{name}", KID[kidId].name) };
+  }
+  const q = pool[Math.floor(Math.random() * pool.length)];
+  (sessionUsed[key] = sessionUsed[key] || {})[q.id] = true;
+  store.write("week", ws, { used: { [kidId]: { [q.id]: true } } });
+  return { line: q.text, who: q.who };
+}
+function messageFor(kidId, big, jobId) {
+  const millie = kidId === "millie";
+  if (big === "school") return { line: millie ? "All done! You earned $1 today!" : "Every school job done today. That's $1.", big:true };
+  if (big === "guitar") return { line: millie ? "3 guitar practices! You earned $5!" : `Three guitar practices this week. That's ${money(WEEKLY.guitar.pay)}.`, big:true };
+  if (big === "mow") return { line: millie ? "You mowed the lawn! You earned $5!" : `Lawn mowed. That's ${money(WEEKLY.mow.pay)} this week.`, big:true };
+  if (big === "floss") return { line: millie ? "Flossed 2 times! You earned $1!" : `Flossed twice this week. That's ${money(WEEKLY.floss.pay)}.`, big:true };
+  if (millie) return { line: jobId === "sonny" && Math.random() < 0.5 ? MILLIE_SONNY : pickMillie() };
+  return pickQuote(kidId);
+}
+
+const toastEl = document.getElementById("toast");
+let toastTimer = null;
+function showToast(msg, kidId) {
+  toastEl.className = "k-" + kidId + (msg.big ? " big" : "");
+  toastEl.innerHTML = `<p class="toast-line">${esc(msg.line)}</p>${msg.who ? `<p class="toast-who">${esc(msg.who)}</p>` : ""}`;
+  requestAnimationFrame(() => toastEl.classList.add("show"));
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove("show"), msg.who ? 5200 : 3200);
+}
+toastEl.addEventListener("click", () => toastEl.classList.remove("show"));
+
+/* ---------- Confetti ---------- */
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+const fx = document.getElementById("fx"), ctx = fx.getContext("2d");
+let parts = [], rafId = null, lastT = 0;
+function sizeFx() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  fx.width = innerWidth * dpr; fx.height = innerHeight * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+sizeFx(); window.addEventListener("resize", sizeFx);
+const KID_COLOURS = { tom:["#7A4FD1","#B79BF0"], charlie:["#23874E","#7FD3A1"], millie:["#5BBCEE","#A8DFF8"] };
+function burst(x, y, kidId, count, power, life) {
+  const cols = [...KID_COLOURS[kidId], "#F7B500", "#FFDD66", "#FF7A8A", "#FFFFFF"];
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2, sp = (0.35 + Math.random() * 0.65) * power;
+    parts.push({
+      x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - power * 0.55,
+      size: 5 + Math.random() * 6, rot: Math.random() * 6, vr: (Math.random() - .5) * 0.3,
+      color: cols[Math.floor(Math.random() * cols.length)], star: Math.random() < 0.35,
+      age: 0, life: life * (0.7 + Math.random() * 0.3)
+    });
+  }
+  if (!rafId) { lastT = performance.now(); rafId = requestAnimationFrame(step); }
+}
+function drawStar(r) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const rad = i % 2 ? r * 0.45 : r, a = i * Math.PI / 5 - Math.PI / 2;
+    ctx.lineTo(Math.cos(a) * rad, Math.sin(a) * rad);
+  }
+  ctx.closePath(); ctx.fill();
+}
+function step(now) {
+  const dt = Math.min(40, now - lastT) / 16.7; lastT = now;
+  ctx.clearRect(0, 0, innerWidth, innerHeight);
+  parts = parts.filter(p => (p.age += dt * 16.7) < p.life);
+  for (const p of parts) {
+    p.vy += 0.32 * dt; p.vx *= 0.985; p.vy *= 0.985;
+    p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, 1 - Math.pow(p.age / p.life, 3));
+    ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillStyle = p.color;
+    if (p.star) drawStar(p.size); else ctx.fillRect(-p.size / 2, -p.size / 3, p.size, p.size * 0.66);
+    ctx.restore();
+  }
+  rafId = parts.length ? requestAnimationFrame(step) : null;
+  if (!rafId) ctx.clearRect(0, 0, innerWidth, innerHeight);
+}
+function celebrate(el, kidId, msg) {
+  if (!reduceMotion.matches) {
+    const r = el ? el.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 2, width: 0, height: 0 };
+    const x = r.left + r.width * 0.75, y = r.top + r.height / 2;
+    if (msg.big) {
+      burst(x, y, kidId, 70, 13, 1900);
+      burst(innerWidth * 0.2, innerHeight * 0.35, kidId, 60, 12, 2000);
+      burst(innerWidth * 0.8, innerHeight * 0.35, kidId, 60, 12, 2000);
+    } else burst(x, y, kidId, 40, 9, 1200);
+  }
+  showToast(msg, kidId);
+}
+
+/* ---------- Actions ---------- */
+function onTick(jobId, el) {
+  const kid = state.kid, date = state.viewDate, ws = weekStart(date);
+  const rec = dayRec(date, kid), was = !!rec[jobId];
+  if (lockedOn(date, kid, jobId)) return;
+  let big = null;
+  if (!was) {
+    const job = JOB[jobId];
+    if (job.cat !== "any" && isSchoolDay(date)) {
+      const sj = schoolJobs(kid);
+      if (sj.filter(j => j.id === jobId || rec[j.id]).length === sj.length) big = "school";
+    }
+    if (WEEKLY[jobId] && summary(ws, kid)[jobId] === WEEKLY[jobId].target - 1) big = jobId;
+  }
+  store.write("week", ws, { days: { [date]: { [kid]: { [jobId]: was ? DEL : true } } } });
+  if (!was) {
+    const tile = document.querySelector(`.tile[data-job="${jobId}"]`) || el;
+    if (tile && !reduceMotion.matches) tile.classList.add("pop");
+    celebrate(tile, kid, messageFor(kid, big, jobId));
+  }
+}
+function addExtra() {
+  const inp = document.getElementById("extra-in");
+  const text = (inp ? inp.value : state.extraDraft).trim();
+  if (!text) { if (inp) inp.focus(); return; }
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const kid = state.kid, date = state.viewDate;
+  state.extraDraft = "";
+  if (inp) inp.blur();
+  store.write("week", weekStart(date), { days: { [date]: { [kid]: { extras: { [id]: text } } } } });
+  celebrate(document.querySelector(".extra"), kid, messageFor(kid, null, "extra"));
+}
+function toggleHoliday() {
+  const t = today(), start = holidayStartFor(t);
+  if (!start) store.write("settings", null, { holidays: { [t]: { end: null } } });
+  else if (start === t) store.write("settings", null, { holidays: { [t]: DEL } });
+  else store.write("settings", null, { holidays: { [start]: { end: addDays(t, -1) } } });
+}
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]");
+  if (!b || b.disabled) return;
+  const act = b.dataset.act;
+  if (act === "tick") onTick(b.dataset.job, b);
+  else if (act === "day") { state.viewDate = b.dataset.date; render(); }
+  else if (act === "prev") { state.viewDate = addDays(state.viewDate, -1); render(); }
+  else if (act === "next") { state.viewDate = addDays(state.viewDate, 1); render(); }
+  else if (act === "add-extra") addExtra();
+  else if (act === "del-extra") {
+    const date = state.viewDate;
+    store.write("week", weekStart(date), { days: { [date]: { [state.kid]: { extras: { [b.dataset.id]: DEL } } } } });
+  }
+  else if (act === "holiday") toggleHoliday();
+  else if (act === "noschool") {
+    const d = b.dataset.date;
+    store.write("settings", null, { noSchool: { [d]: isNoSchool(d) ? DEL : true } });
+  }
+  else if (act === "jobtoggle") {
+    const { kid, job } = b.dataset;
+    store.write("settings", null, { off: { [kid]: { [job]: !isOff(kid, job) } } });
+  }
+  else if (act === "paid") {
+    const w = b.dataset.week;
+    store.write("week", w, { paid: !(data.weeks[w] || {}).paid });
+  }
+});
+document.addEventListener("input", e => { if (e.target.id === "extra-in") state.extraDraft = e.target.value; });
+document.addEventListener("keydown", e => { if (e.target.id === "extra-in" && e.key === "Enter") { e.preventDefault(); addExtra(); } });
+
+/* ---------- Start ---------- */
+{
+  const r = readRoute(); state.view = r.view; state.kid = r.kid;
+}
+const configured = FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith("PASTE");
+if (configured) { render(); startFirebase(); } else startLocal();
+</script>
+</body>
+</html>
